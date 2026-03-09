@@ -24,7 +24,45 @@ This dataset contains historical usage data from the **London bike sharing syste
 
 The dataset enables analysis of **rental demands, popular routes, trip durations, etc.**.
 
-Dataset proposals:
+## 2. Prerequirements
+- Docker is installed on your device
+- Some version of Python 3 is installed on your device (we used Python 3.13)
+- The package manager uv should be installed on your device
+
+## 3. Running the dockerized local database
+mkdir -p london_bike_share_data
+
+Run pg-database and pg-admin:
+docker compose up --build postgres pgadmin
+
+Run ingestion pipeline in another terminal:
+docker compose --profile ingest up --build bike_ingest
+
+## 4. Connecting to the database in pgadmin
+
+### Fill in the Connection Settings
+
+#### General Tab
+
+```
+Name: London Bike Share DB
+```
+
+#### Connection Tab
+
+| Field | Value |
+|------|------|
+| Host name/address | `postgres` |
+| Port | `5432` |
+| Maintenance database | `london_bike_share` |
+| Username | `root` |
+| Password | `root` |
+
+#### Save
+
+Click **Save**.
+
+# Dataset proposals:
 https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset
 
 https://tfl.gov.uk/info-for/open-data-users/our-open-data#on-this-page-5

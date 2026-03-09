@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: pgdatabase
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: london_bike_share
+    volumes:
+      - ./london_bike_share_data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    networks:
+      - london-bike-share-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d london_bike_share"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "8085:80"
+    networks:
+      - london-bike-share-network
+    depends_on:
+      - postgres
+
+  bike_ingest:
+    build:
+      context: .
+      dockerfile: app/local_ingestion/Dockerfile
+    image: bike_ingest:v001
+    container_name: bike_ingest
+    networks:
+      - london-bike-share-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - ingest
+    command: >
+      --pg-user=root
+      --pg-pass=root
+      --pg-host=postgres
+      --pg-port=5432
+
+volumes:
+  pgadmin_data:
+
+networks:
+  london-bike-share-network:
+    driver: bridge
