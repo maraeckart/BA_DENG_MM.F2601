@@ -1,4 +1,4 @@
 FROM apache/airflow:2.9.3
 
 USER airflow
-RUN pip install --no-cache-dir apache-airflow-providers-postgres psycopg2-binary pandas sqlalchemy
+RUN pip install --no-cache-dir apache-airflow-providers-postgres psycopg2-binary pandas sqlalchemy kagglehub

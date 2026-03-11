@@ -1,6 +1,7 @@
 import kagglehub
 import pandas as pd
-from sqlalchemy import create_engine, Engine
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 import click
 
 def ingest_data(engine: Engine, chunksize: int, target_table: str):
@@ -34,6 +35,14 @@ def ingest_data(engine: Engine, chunksize: int, target_table: str):
     )
 
     print(f"Table {target_table} created")
+
+    first_chunk.to_sql(
+        name=target_table,
+        con=engine,
+        if_exists="append",
+        index=False
+    )
+    print(f"Inserted first chunk: {len(first_chunk)}")
 
     for batch in df_batches:
         batch.to_sql(

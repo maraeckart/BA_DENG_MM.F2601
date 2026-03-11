@@ -62,6 +62,44 @@ Name: London Bike Share DB
 
 Click **Save**.
 
+
+# Transformations:
+Aggregation 1) : station-based aggregation
+•	Which stations are most used
+•	At what time of day demand peaks
+•	Where to redistribute bikes
+•	Which stations might need maintenance attention
+Aggregation 2) : route demant
+•	which routes are most popular
+•	where bikes move most frequently
+•	which station pairs may need redistribution planning
+
+Raw table
+london_bike_data
+↓
+Clean transformation
+bike_trips_clean
+↓
+Aggregations
+station_hourly_demand
+route_daily_demand
+top_routes
+station_daily_demand
+
+
+# Orchestration 
+you should already have run: 
+docker compose up --build postgres
+
+after that run:
+docker compose up --build airflow_init
+docker compose up --build airflow_webserver airflow_sheduler
+
+then you can open in your browser: http://localhost:8081/home
+| Username | `admin` |
+| Password | `admin` |
+
+
 # Dataset proposals:
 https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset
 

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18
+    image: postgres:16
     container_name: pgdatabase
     environment:
       POSTGRES_USER: root
@@ -66,6 +66,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://root:root@postgres:5432/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_shared_airflow_secret_key"
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
@@ -89,6 +90,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://root:root@postgres:5432/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_shared_airflow_secret_key"
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
@@ -113,6 +115,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://root:root@postgres:5432/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: "my_shared_airflow_secret_key"
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
