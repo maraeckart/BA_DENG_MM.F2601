@@ -1,0 +1,4 @@
+london_bike_share_data/
+
+venv/
+.env
