@@ -23,7 +23,8 @@ with DAG(
             "--pg-user=root "
             "--pg-pass=root "
             "--pg-host=postgres "
-            "--pg-port=5432"
+            "--pg-port=5432 "
+            "--run-date {{ ds }} "
         ),
     )
 

@@ -25,9 +25,7 @@ This project implements an automated ETL (Extract, Transform, Load) pipeline for
 
 ## 2. Prerequisites
 Ensure the following are installed on your local machine:
-* **Docker & Docker Compose**
-* **Python 3.13**
-* **uv** (Python package manager)
+**Docker**
 
 ---
 
@@ -45,7 +43,7 @@ Run the PostgreSQL database and pgAdmin:
 ```bash
 docker compose up --build postgres pgadmin
 ```
-### Ingestion Pipeline
+### Ingestion Pipeline (If you want to run it manually otherwise use Airflow)
 
 In a separate terminal, run the ingestion service to populate the raw tables:
 
@@ -56,7 +54,7 @@ docker compose --profile ingest up --build bike_ingest
 The pipeline processes data through three distinct layers:
 
 ```
-    --> Kaggle (CSV Source) 
+    --> Kaggle (CSV Source)
     --> Raw Table: london_bike_data
     --> Clean Layer: bike_trips_clean
         --> Agg: station_hourly_demand
@@ -65,7 +63,7 @@ The pipeline processes data through three distinct layers:
         --> Agg: station_daily_demand
 ```
 
-### Raw Layer (london_bike_data): 
+### Raw Layer (london_bike_data):
 The initial ingestion of raw CSV data.
 
 ### Clean Layer (bike_trips_clean):
@@ -88,20 +86,32 @@ The pipeline is managed by Apache Airflow to handle task dependencies and schedu
 ### Start Airflow
 
 
-```bash 
-# Initialize: 
-docker compose up --build airflow-init 
+```bash
+# Initialize:
+docker compose up --build airflow-init
 
 # Start Services:
-docker compose up --build airflow-webserver airflow-scheduler 
+docker compose up --build airflow-webserver airflow-scheduler
 ```
+
+To run the pipeline through the airflow UI you need to add a ConnectionId.
+For that go to **Admin -> Connections -> +**.
+| Field | Value |
+| :--- | :--- |
+| **Connection Id** | postgres_london_bike |
+| **Connection** | Postgres |
+| **Host** | postgres |
+| **Database** | london_bike_share |
+| **Login** | root |
+| **Password** | root |
+| **Port** | 5432 |
+
 
 ### Access & Credentials
 |Service| URL | Username | Password |
 | :--- | :--- | :--- | :--- |
 | Airflow | http://localhost:8081 |admin| admin|
-| pgAdmin | http://localhost:8085 |admin@admin.com| root|			
-
+| pgAdmin | http://localhost:8085 |admin@admin.com| root|
 
 
 The Airflow DAG executes the following logic:
@@ -133,5 +143,5 @@ Connection Tab:
 press ***Save***
 
 ## 7. Additional Data Sources
-London Transport Open Data (TfL): 
+London Transport Open Data (TfL):
 https://tfl.gov.uk/info-for/open-data-users/our-open-data$0
