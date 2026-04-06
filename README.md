@@ -31,11 +31,6 @@ Ensure the following are installed on your local machine:
 
 ## 3. Infrastructure Setup
 
-### Local Storage
-Create a directory for persistent database storage:
-```bash
-mkdir -p london_bike_share_data
-```
 ### Database & Administration
 
 Run the PostgreSQL database and pgAdmin:
@@ -94,25 +89,25 @@ docker compose up --build airflow-init
 docker compose up --build airflow-webserver airflow-scheduler
 ```
 
-To run the pipeline through the airflow UI you need to add a ConnectionId.
-For that go to **Admin -> Connections -> +**.
-| Field | Value |
-| :--- | :--- |
-| **Connection Id** | postgres_london_bike |
-| **Connection** | Postgres |
-| **Host** | postgres |
-| **Database** | london_bike_share |
-| **Login** | root |
-| **Password** | root |
-| **Port** | 5432 |
-
-
 ### Access & Credentials
 |Service| URL | Username | Password |
 | :--- | :--- | :--- | :--- |
 | Airflow | http://localhost:8081 |admin| admin|
 | pgAdmin | http://localhost:8085 |admin@admin.com| root|
+| postgres | http://localhost:5432 |root| root|
 
+### Important
+To run the pipeline through the airflow UI you need to add a ConnectionId.
+For that go to **Admin -> Connections -> +**.
+| Field | Value |
+| :--- | :--- |
+| **Connection Id** | postgres_london_bike |
+| **Connection Type** | Postgres |
+| **Host** | postgres |
+| **Database** | london_bike_share |
+| **Login** | root |
+| **Password** | root |
+| **Port** | 5432 |
 
 The Airflow DAG executes the following logic:
 
