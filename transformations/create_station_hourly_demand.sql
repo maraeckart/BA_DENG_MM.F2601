@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS station_hourly_demand;
+
 CREATE TABLE station_hourly_demand AS
 SELECT
     start_station_id,

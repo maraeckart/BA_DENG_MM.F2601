@@ -1,70 +1,147 @@
-# BA_DENG_MM.F2601
+# London Bike Share Data Pipeline
+### Project Identifier: `BA_DENG_MM.F2601`
+
+This project implements an automated ETL (Extract, Transform, Load) pipeline for the **London Bike Share Usage Dataset**. It utilizes Docker to orchestrate a PostgreSQL database, pgAdmin for visualization, and Apache Airflow for workflow management.
+
+---
 
 ## 1. Dataset Overview
-
-**Dataset:** London Bike Share Usage Dataset
-**Source:** Kaggle
-https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset
-
-This dataset contains historical usage data from the **London bike sharing system**. The dataset includes time-based bike rental information along with environmental and calendar-related variables.
+* **Source:** [Kaggle - London Bike Share Usage Dataset](https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset)
+* **Description:** Historical trip data from London’s bike-sharing system, including station details, timestamps, and trip durations.
 
 ### Main Features
+| Feature | Description |
+| :--- | :--- |
+| **Number** | Unique identifier for each trip (Trip ID) |
+| **Start Date** | Date and time when the trip began |
+| **Start Station** | Name and ID of the starting station |
+| **End Date** | Date and time when the trip ended |
+| **End Station** | Name and ID of the ending station |
+| **Bike Number** | Unique identifier for the bicycle used |
+| **Bike Model** | The model of the bicycle used |
+| **Total Duration** | Trip length (Human-readable and Milliseconds) |
 
-- `Number:` A unique identifier for each trip (Trip ID).
-- `Start Date:` The date and time when the trip began.
-- `Start Station Number:` The identifier for the starting station.
-- `Start Station:` The name of the starting station.
-- `End Date:` The date and time when the trip ended.
-- `End Station Number:` The identifier for the ending station.
-- `End Station:` The name of the ending station.
-- `Bike Number:` A unique identifier for the bicycle used.
-- `Bike Model:` The model of the bicycle used.
-- `Total Duration:` The total time duration of the trip (in a human-readable format).
-- `Total Duration (ms):` The total time duration of the trip in milliseconds.
+---
 
-The dataset enables analysis of **rental demands, popular routes, trip durations, etc.**.
+## 2. Prerequisites
+Ensure the following are installed on your local machine:
+**Docker**
 
-## 2. Prerequirements
-- Docker is installed on your device
-- Some version of Python 3 is installed on your device (we used Python 3.13)
-- The package manager uv should be installed on your device
+---
 
-## 3. Running the dockerized local database
+## 3. Infrastructure Setup
+
+### Local Storage
+Create a directory for persistent database storage:
+```bash
 mkdir -p london_bike_share_data
+```
+### Database & Administration
 
-Run pg-database and pg-admin:
+Run the PostgreSQL database and pgAdmin:
+
+```bash
 docker compose up --build postgres pgadmin
+```
+### Ingestion Pipeline (If you want to run it manually otherwise use Airflow)
 
-Run ingestion pipeline in another terminal:
+In a separate terminal, run the ingestion service to populate the raw tables:
+
+```bash
 docker compose --profile ingest up --build bike_ingest
-
-## 4. Connecting to the database in pgadmin
-
-### Fill in the Connection Settings
-
-#### General Tab
+```
+## 4. Data Pipeline Structure
+The pipeline processes data through three distinct layers:
 
 ```
-Name: London Bike Share DB
+    --> Kaggle (CSV Source)
+    --> Raw Table: london_bike_data
+    --> Clean Layer: bike_trips_clean
+        --> Agg: station_hourly_demand
+        --> Agg: route_daily_demand
+        --> Agg: top_routes
+        --> Agg: station_daily_demand
 ```
 
-#### Connection Tab
+### Raw Layer (london_bike_data):
+The initial ingestion of raw CSV data.
 
+### Clean Layer (bike_trips_clean):
+
+Standardized column naming and timestamp formatting.
+
+Data preparation for downstream analytical queries.
+
+### Aggregation Layer:
+
+Station Hourly: Identifies peak demand and maintenance needs.
+
+Route Daily: Tracks movement patterns between specific stations.
+
+Top Routes: Focuses on the highest-traffic segments.
+
+## 5. Workflow Orchestration (Airflow)
+The pipeline is managed by Apache Airflow to handle task dependencies and scheduling.
+
+### Start Airflow
+
+
+```bash
+# Initialize:
+docker compose up --build airflow-init
+
+# Start Services:
+docker compose up --build airflow-webserver airflow-scheduler
+```
+
+To run the pipeline through the airflow UI you need to add a ConnectionId.
+For that go to **Admin -> Connections -> +**.
 | Field | Value |
-|------|------|
-| Host name/address | `postgres` |
-| Port | `5432` |
-| Maintenance database | `london_bike_share` |
-| Username | `root` |
-| Password | `root` |
+| :--- | :--- |
+| **Connection Id** | postgres_london_bike |
+| **Connection** | Postgres |
+| **Host** | postgres |
+| **Database** | london_bike_share |
+| **Login** | root |
+| **Password** | root |
+| **Port** | 5432 |
 
-#### Save
 
-Click **Save**.
+### Access & Credentials
+|Service| URL | Username | Password |
+| :--- | :--- | :--- | :--- |
+| Airflow | http://localhost:8081 |admin| admin|
+| pgAdmin | http://localhost:8085 |admin@admin.com| root|
 
-# Dataset proposals:
-https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset
 
-https://tfl.gov.uk/info-for/open-data-users/our-open-data#on-this-page-5
+The Airflow DAG executes the following logic:
 
-https://data.stadt-zuerich.ch/dataset/vbz_fahrplandaten_gtfs
+ingest_raw_data
+
+create_bike_trips_clean
+
+create_station_hourly_demand
+
+create_route_daily_demand
+
+## 6. Connecting pgAdmin to Postgres
+Once logged into pgAdmin, register the server with these settings:
+
+General Tab:
+
+Name: London Bike Share DB
+
+Connection Tab:
+| Field | Value |
+| :--- | :--- |
+| Host name/address | postgres |
+| Port | 5432 |
+| Maintenance database | london_bike_share |
+| Username | root |
+| Password | root |
+
+press ***Save***
+
+## 7. Additional Data Sources
+London Transport Open Data (TfL):
+https://tfl.gov.uk/info-for/open-data-users/our-open-data$0

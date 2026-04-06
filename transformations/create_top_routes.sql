@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS top_routes;
+
 CREATE TABLE top_routes AS
 SELECT
     start_station_id,

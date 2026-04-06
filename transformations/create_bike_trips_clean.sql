@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS bike_trips_clean;
+
 CREATE TABLE bike_trips_clean AS
 SELECT
     "Number" AS trip_id,

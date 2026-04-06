@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS route_daily_demand;
+
 CREATE TABLE route_daily_demand AS
 SELECT
     start_station_id,
