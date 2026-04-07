@@ -36,7 +36,7 @@ Ensure the following are installed on your local machine:
 Run the PostgreSQL database and pgAdmin:
 
 ```bash
-docker compose up --build postgres pgadmin
+docker compose up -d --build postgres pgadmin
 ```
 ### Ingestion Pipeline (If you want to run it manually otherwise use Airflow)
 
@@ -86,7 +86,7 @@ The pipeline is managed by Apache Airflow to handle task dependencies and schedu
 docker compose up --build airflow-init
 
 # Start Services:
-docker compose up --build airflow-webserver airflow-scheduler
+docker compose up -d --build airflow-webserver airflow-scheduler airflow-dag-processor
 ```
 
 ### Access & Credentials
