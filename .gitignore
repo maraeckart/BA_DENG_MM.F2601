@@ -10,7 +10,6 @@ __pycache__/
 *.pyd
 *.log
 *.csv
-*.json
 *.xlsx
 *.zip
 *.tar.gz
