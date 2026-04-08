@@ -33,27 +33,27 @@ Ensure the following are installed on your local machine:
 ```bash
 .
 ├── app/
-│   └── local_ingestion/        
-│       ├── Dockerfile          
-│       └── pipeline.py         
-├── london_bike_share_data/    
+│   └── local_ingestion/
+│       ├── Dockerfile
+│       └── pipeline.py
+├── london_bike_share_data/
 ├── orchestration/
 │   └── airflow/
 │       ├── dags/
-│       │   └── bike_pipeline_day.py 
-│       ├── Dockerfile          
-│       └── simple_auth_manager_passwords.json 
+│       │   └── bike_pipeline_day.py
+│       ├── Dockerfile
+│       └── simple_auth_manager_passwords.json
 ├── postgres/
-│   └── init_airflow.sql       
-├── transformations/            
+│   └── init_airflow.sql
+├── transformations/
 │   ├── create_bike_trips_clean.sql
 │   ├── create_route_daily_demand.sql
 │   ├── create_station_hourly_demand.sql
 │   └── create_top_routes.sql
-├── .python-version             
-├── docker-compose.yaml        
-├── pyproject.toml              
-└── uv.lock                    
+├── .python-version
+├── docker-compose.yaml
+├── pyproject.toml
+└── uv.lock
 ```
 ## 4. Infrastructure Setup
 
@@ -98,8 +98,24 @@ Top Routes: Focuses on the highest-traffic segments.
 ## 6. Workflow Orchestration (Airflow)
 The pipeline is managed by Apache Airflow to handle task dependencies and scheduling.
 
-### Backfill Logic
-The DAG is configured with catchup=True and a specific date range (2023-08-01 to 2023-08-31) to match the dataset availability.
+### Run for a Single Date
+1. Open Airflow UI: http://localhost:8081
+2. Select DAG `bike_pipeline_day`
+3. Click **Trigger DAG**
+4. Set the execution date (e.g., `2023-08-10`)
+5. Trigger the run
+
+→ Runs the pipeline only for that specific day.
+
+### Run Backfill (Historical Data)
+1. Select DAG `bike_pipeline_day`
+2. Click **Trigger DAG**
+3. Select **Run Backfills**
+4. Set a date range (Aug 1–31, 2023)
+
+→ Airflow executes one run per day for the selected range.
+
+**Note:** Only dates within Aug 2023 contain data.
 
 ### Access & Credentials
 |Service| URL | Username | Password |
@@ -107,19 +123,6 @@ The DAG is configured with catchup=True and a specific date range (2023-08-01 to
 | Airflow | http://localhost:8081 |admin| admin|
 | pgAdmin | http://localhost:8085 |admin@admin.com| root|
 | postgres | http://localhost:5432 |root| root|
-
-### Important
-To run the pipeline through the airflow UI you need to add a ConnectionId.
-For that go to **Admin -> Connections -> +**.
-| Field | Value |
-| :--- | :--- |
-| **Connection Id** | postgres_london_bike |
-| **Connection Type** | Postgres |
-| **Host** | postgres |
-| **Database** | london_bike_share |
-| **Login** | root |
-| **Password** | root |
-| **Port** | 5432 |
 
 The Airflow DAG executes the following logic:
 
@@ -156,9 +159,9 @@ Open the Query Tool and execute:
 ```bash
 SQL
 -- Check if data exists and is cleaned
-SELECT trip_date, count(*) 
-FROM bike_trips_clean 
-GROUP BY trip_date 
+SELECT trip_date, count(*)
+FROM bike_trips_clean
+GROUP BY trip_date
 ORDER BY trip_date ASC;
 ```
 Expected Result: You should see row counts for every day in August 2023, confirming the ingestion and transformation were successful.
