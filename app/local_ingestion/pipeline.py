@@ -125,7 +125,7 @@ def ingest_data(engine: Engine, chunksize: int, target_table: str, run_date: str
 @click.option('--pg-db', default='london_bike_share', help='PostgreSQL database name')
 @click.option('--chunksize', default=100000, type=int, help='Chunk size for ingestion')
 @click.option('--target-table', default='london_bike_data', help='Target table name')
-@click.option('--run-date', default=lambda: __import__('datetime').datetime.utcnow().strftime('%Y-%m-%d'), show_default='current UTC date', help='Airflow logical run date in YYYY-MM-DD format')
+@click.option('--run-date', default="2023-08-01", show_default='current UTC date', help='Airflow logical run date in YYYY-MM-DD format')
 def main(pg_user, pg_pass, pg_host, pg_port, pg_db, chunksize, target_table, run_date):
     engine: Engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
 
