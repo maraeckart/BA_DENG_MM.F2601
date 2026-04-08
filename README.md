@@ -34,26 +34,26 @@ Ensure the following are installed on your local machine:
 .
 ├── app/
 │   └── local_ingestion/        
-│       ├── Dockerfile          # Ingestion service container
-│       └── pipeline.py         # Python script for Kaggle data ingestion
-├── london_bike_share_data/     # Local mount for Raw CSV data
+│       ├── Dockerfile          
+│       └── pipeline.py         
+├── london_bike_share_data/    
 ├── orchestration/
 │   └── airflow/
 │       ├── dags/
-│       │   └── bike_pipeline_day.py # Main DAG definition
-│       ├── Dockerfile          # Custom Airflow image with dependencies
-│       └── simple_auth_manager_passwords.json # Credential storage
+│       │   └── bike_pipeline_day.py 
+│       ├── Dockerfile          
+│       └── simple_auth_manager_passwords.json 
 ├── postgres/
-│   └── init_airflow.sql        # Database initialization script
-├── transformations/            # SQL Layer
+│   └── init_airflow.sql       
+├── transformations/            
 │   ├── create_bike_trips_clean.sql
 │   ├── create_route_daily_demand.sql
 │   ├── create_station_hourly_demand.sql
 │   └── create_top_routes.sql
-├── .python-version             # Python version for uv
-├── docker-compose.yaml         # Full stack orchestration
-├── pyproject.toml              # Project dependencies (managed by uv)
-└── uv.lock                     # Deterministic lockfile for environments
+├── .python-version             
+├── docker-compose.yaml        
+├── pyproject.toml              
+└── uv.lock                    
 ```
 ## 4. Infrastructure Setup
 
