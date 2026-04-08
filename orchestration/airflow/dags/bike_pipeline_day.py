@@ -11,10 +11,10 @@ TRANSFORMATIONS_DIR = PROJECT_ROOT / "transformations"
 with DAG(
     dag_id="bike_pipeline_day",
     start_date=datetime(2023, 8, 1),
-    end_date=datetime(2023, 8, 31), 
+    end_date=datetime(2023, 8, 31),
     schedule="@daily",
-    catchup=True,
-    max_active_runs=1,       
+    catchup=False,
+    max_active_runs=1,
     tags=["bike", "pipeline", "midterm"],
 ) as dag:
 
