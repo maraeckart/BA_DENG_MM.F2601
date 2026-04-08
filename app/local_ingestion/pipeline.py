@@ -81,7 +81,7 @@ def ingest_data(engine: Engine, chunksize: int, target_table: str, run_date: str
             filtered_batch.head(0).to_sql(
                 name=target_table,
                 con=engine,
-                if_exists="replace",
+                if_exists="append",
                 index=False,
                 dtype=sql_dtypes,
             )
@@ -136,7 +136,7 @@ def main(pg_user, pg_pass, pg_host, pg_port, pg_db, chunksize, target_table, run
         raise click.BadParameter("run-date must be in YYYY-MM-DD format") from exc
 
     min_date = datetime(2023, 8, 1).date()
-    max_date = datetime(2023, 9, 1).date()
+    max_date = datetime(2023, 8, 31).date()
 
     if not (min_date <= run_dt <= max_date):
         raise click.BadParameter(

@@ -7,7 +7,8 @@ This project implements an automated ETL (Extract, Transform, Load) pipeline for
 
 ## 1. Dataset Overview
 * **Source:** [Kaggle - London Bike Share Usage Dataset](https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset)
-* **Description:** Historical trip data from London’s bike-sharing system, including station details, timestamps, and trip durations.
+* **Description:** HHistorical trip data from London’s bike-sharing system (Aug 1 – Aug 31, 2023).
+* **Scope:** ~776,527 bicycle journeys.
 
 ### Main Features
 | Feature | Description |
@@ -28,24 +29,43 @@ Ensure the following are installed on your local machine:
 **Docker**
 
 ---
-
-## 3. Infrastructure Setup
+## 3. Project Structure
+```bash
+.
+├── app/
+│   └── local_ingestion/        
+│       ├── Dockerfile          # Ingestion service container
+│       └── pipeline.py         # Python script for Kaggle data ingestion
+├── london_bike_share_data/     # Local mount for Raw CSV data
+├── orchestration/
+│   └── airflow/
+│       ├── dags/
+│       │   └── bike_pipeline_day.py # Main DAG definition
+│       ├── Dockerfile          # Custom Airflow image with dependencies
+│       └── simple_auth_manager_passwords.json # Credential storage
+├── postgres/
+│   └── init_airflow.sql        # Database initialization script
+├── transformations/            # SQL Layer
+│   ├── create_bike_trips_clean.sql
+│   ├── create_route_daily_demand.sql
+│   ├── create_station_hourly_demand.sql
+│   └── create_top_routes.sql
+├── .python-version             # Python version for uv
+├── docker-compose.yaml         # Full stack orchestration
+├── pyproject.toml              # Project dependencies (managed by uv)
+└── uv.lock                     # Deterministic lockfile for environments
+```
+## 4. Infrastructure Setup
 
 ### Database & Administration
 
-Run the PostgreSQL database and pgAdmin:
+The environment is fully containerized. To launch the entire stack:
 
 ```bash
-docker compose up -d --build postgres pgadmin
+# Start all services (Database, Airflow, API Server, Scheduler)
+docker compose up --build
 ```
-### Ingestion Pipeline (If you want to run it manually otherwise use Airflow)
-
-In a separate terminal, run the ingestion service to populate the raw tables:
-
-```bash
-docker compose --profile ingest up --build bike_ingest
-```
-## 4. Data Pipeline Structure
+## 5. Data Pipeline Structure
 The pipeline processes data through three distinct layers:
 
 ```
@@ -75,19 +95,11 @@ Route Daily: Tracks movement patterns between specific stations.
 
 Top Routes: Focuses on the highest-traffic segments.
 
-## 5. Workflow Orchestration (Airflow)
+## 6. Workflow Orchestration (Airflow)
 The pipeline is managed by Apache Airflow to handle task dependencies and scheduling.
 
-### Start Airflow
-
-
-```bash
-# Initialize:
-docker compose up --build airflow-init
-
-# Start Services:
-docker compose up -d --build airflow-webserver airflow-scheduler airflow-dag-processor
-```
+### Backfill Logic
+The DAG is configured with catchup=True and a specific date range (2023-08-01 to 2023-08-31) to match the dataset availability.
 
 ### Access & Credentials
 |Service| URL | Username | Password |
@@ -119,7 +131,7 @@ create_station_hourly_demand
 
 create_route_daily_demand
 
-## 6. Connecting pgAdmin to Postgres
+## 7. Connecting pgAdmin to Postgres
 Once logged into pgAdmin, register the server with these settings:
 
 General Tab:
@@ -136,7 +148,21 @@ Connection Tab:
 | Password | root |
 
 press ***Save***
+## 8. Final Quick Check (Testing)
+To verify the pipeline's success after the Airflow Grid shows all green, run the following check in pgAdmin:
+Connect to the London Bike Share DB.
 
-## 7. Additional Data Sources
+Open the Query Tool and execute:
+```bash
+SQL
+-- Check if data exists and is cleaned
+SELECT trip_date, count(*) 
+FROM bike_trips_clean 
+GROUP BY trip_date 
+ORDER BY trip_date ASC;
+```
+Expected Result: You should see row counts for every day in August 2023, confirming the ingestion and transformation were successful.
+
+## 9. Additional Data Sources
 London Transport Open Data (TfL):
 https://tfl.gov.uk/info-for/open-data-users/our-open-data$0
