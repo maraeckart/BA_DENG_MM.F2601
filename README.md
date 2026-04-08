@@ -7,7 +7,8 @@ This project implements an automated ETL (Extract, Transform, Load) pipeline for
 
 ## 1. Dataset Overview
 * **Source:** [Kaggle - London Bike Share Usage Dataset](https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset)
-* **Description:** Historical trip data from London’s bike-sharing system, including station details, timestamps, and trip durations.
+* **Description:** HHistorical trip data from London’s bike-sharing system (Aug 1 – Aug 31, 2023).
+* **Scope:** ~776,527 bicycle journeys.
 
 ### Main Features
 | Feature | Description |
@@ -28,24 +29,43 @@ Ensure the following are installed on your local machine:
 **Docker**
 
 ---
-
-## 3. Infrastructure Setup
+## 3. Project Structure
+```bash
+.
+├── app/
+│   └── local_ingestion/
+│       ├── Dockerfile
+│       └── pipeline.py
+├── london_bike_share_data/
+├── orchestration/
+│   └── airflow/
+│       ├── dags/
+│       │   └── bike_pipeline_day.py
+│       ├── Dockerfile
+│       └── simple_auth_manager_passwords.json
+├── postgres/
+│   └── init_airflow.sql
+├── transformations/
+│   ├── create_bike_trips_clean.sql
+│   ├── create_route_daily_demand.sql
+│   ├── create_station_hourly_demand.sql
+│   └── create_top_routes.sql
+├── .python-version
+├── docker-compose.yaml
+├── pyproject.toml
+└── uv.lock
+```
+## 4. Infrastructure Setup
 
 ### Database & Administration
 
-Run the PostgreSQL database and pgAdmin:
+The environment is fully containerized. To launch the entire stack:
 
 ```bash
-docker compose up --build postgres pgadmin
+# Start all services (Database, Airflow, API Server, Scheduler)
+docker compose up --build
 ```
-### Ingestion Pipeline (If you want to run it manually otherwise use Airflow)
-
-In a separate terminal, run the ingestion service to populate the raw tables:
-
-```bash
-docker compose --profile ingest up --build bike_ingest
-```
-## 4. Data Pipeline Structure
+## 5. Data Pipeline Structure
 The pipeline processes data through three distinct layers:
 
 ```
@@ -75,19 +95,27 @@ Route Daily: Tracks movement patterns between specific stations.
 
 Top Routes: Focuses on the highest-traffic segments.
 
-## 5. Workflow Orchestration (Airflow)
+## 6. Workflow Orchestration (Airflow)
 The pipeline is managed by Apache Airflow to handle task dependencies and scheduling.
 
-### Start Airflow
+### Run for a Single Date
+1. Open Airflow UI: http://localhost:8081
+2. Select DAG `bike_pipeline_day`
+3. Click **Trigger DAG**
+4. Set the execution date (e.g., `2023-08-10`)
+5. Trigger the run
 
+→ Runs the pipeline only for that specific day.
 
-```bash
-# Initialize:
-docker compose up --build airflow-init
+### Run Backfill (Historical Data)
+1. Select DAG `bike_pipeline_day`
+2. Click **Trigger DAG**
+3. Select **Run Backfills**
+4. Set a date range (Aug 1–31, 2023)
 
-# Start Services:
-docker compose up --build airflow-webserver airflow-scheduler
-```
+→ Airflow executes one run per day for the selected range.
+
+**Note:** Only dates within Aug 2023 contain data.
 
 ### Access & Credentials
 |Service| URL | Username | Password |
@@ -95,19 +123,6 @@ docker compose up --build airflow-webserver airflow-scheduler
 | Airflow | http://localhost:8081 |admin| admin|
 | pgAdmin | http://localhost:8085 |admin@admin.com| root|
 | postgres | http://localhost:5432 |root| root|
-
-### Important
-To run the pipeline through the airflow UI you need to add a ConnectionId.
-For that go to **Admin -> Connections -> +**.
-| Field | Value |
-| :--- | :--- |
-| **Connection Id** | postgres_london_bike |
-| **Connection Type** | Postgres |
-| **Host** | postgres |
-| **Database** | london_bike_share |
-| **Login** | root |
-| **Password** | root |
-| **Port** | 5432 |
 
 The Airflow DAG executes the following logic:
 
@@ -119,7 +134,7 @@ create_station_hourly_demand
 
 create_route_daily_demand
 
-## 6. Connecting pgAdmin to Postgres
+## 7. Connecting pgAdmin to Postgres
 Once logged into pgAdmin, register the server with these settings:
 
 General Tab:
@@ -136,7 +151,21 @@ Connection Tab:
 | Password | root |
 
 press ***Save***
+## 8. Final Quick Check (Testing)
+To verify the pipeline's success after the Airflow Grid shows all green, run the following check in pgAdmin:
+Connect to the London Bike Share DB.
 
-## 7. Additional Data Sources
+Open the Query Tool and execute:
+```bash
+SQL
+-- Check if data exists and is cleaned
+SELECT trip_date, count(*)
+FROM bike_trips_clean
+GROUP BY trip_date
+ORDER BY trip_date ASC;
+```
+Expected Result: You should see row counts for every day in August 2023, confirming the ingestion and transformation were successful.
+
+## 9. Additional Data Sources
 London Transport Open Data (TfL):
 https://tfl.gov.uk/info-for/open-data-users/our-open-data$0

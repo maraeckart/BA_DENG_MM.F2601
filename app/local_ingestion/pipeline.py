@@ -1,13 +1,40 @@
+from datetime import datetime
+from pathlib import Path
+
+import click
 import kagglehub
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
-import click
+from sqlalchemy.types import BigInteger, DateTime, Text
 
-def ingest_data(engine: Engine, chunksize: int, target_table: str):
-    print(f"Downloading dataset...")
-    cache_path = kagglehub.dataset_download("kalacheva/london-bike-share-usage-dataset")
-    dataset_path = cache_path + "/LondonBikeJourneyAug2023.csv"
+def get_dataset_path() -> Path:
+    dataset_file = "LondonBikeJourneyAug2023.csv"
+    local_data_path = Path("/opt/airflow/project/data") / dataset_file
+
+    if local_data_path.exists():
+        print(f"Using existing local dataset at {local_data_path}")
+        return local_data_path
+
+    print("Local dataset not found. Downloading dataset from Kaggle...")
+    cache_path = Path(kagglehub.dataset_download("kalacheva/london-bike-share-usage-dataset"))
+    dataset_path = cache_path / dataset_file
+
+    if not dataset_path.exists():
+        raise FileNotFoundError(
+            f"Dataset file not found after Kaggle download: {dataset_path}"
+        )
+
+    return dataset_path
+
+
+def filter_batch_for_run_date(batch: pd.DataFrame, run_date: str) -> pd.DataFrame:
+    target_date = pd.to_datetime(run_date).date()
+    filtered_batch = batch[batch["Start date"].dt.date == target_date].copy()
+    return filtered_batch
+
+def ingest_data(engine: Engine, chunksize: int, target_table: str, run_date: str):
+    dataset_path = get_dataset_path()
 
     dtypes = {
         "Number": "int64",
@@ -21,40 +48,73 @@ def ingest_data(engine: Engine, chunksize: int, target_table: str):
         "Total Duration (ms)": "int64"
     }
 
-    df_batches = pd.read_csv(dataset_path,
+    sql_dtypes = {
+        "Number": BigInteger(),
+        "Start date": DateTime(),
+        "End date": DateTime(),
+        "Start Station Number": BigInteger(),
+        "Start Station": Text(),
+        "End Station Number": BigInteger(),
+        "End Station": Text(),
+        "Bike Number": Text(),
+        "Bike Model": Text(),
+        "Total Duration": Text(),
+        "Total Duration (ms)": BigInteger(),
+    }
+
+    df_batches = pd.read_csv(str(dataset_path),
         dtype=dtypes,
         parse_dates=["Start date", "End date"],
         iterator=True,
         chunksize=chunksize,
     )
-
-    first_chunk = next(df_batches)
-    first_chunk.head(0).to_sql(
-        name=target_table,
-        con=engine,
-        if_exists="replace"
-    )
-
-    print(f"Table {target_table} created")
-
-    first_chunk.to_sql(
-        name=target_table,
-        con=engine,
-        if_exists="append",
-        index=False
-    )
-    print(f"Inserted first chunk: {len(first_chunk)}")
+    table_initialized = False
+    inserted_rows = 0
 
     for batch in df_batches:
-        batch.to_sql(
+        filtered_batch = filter_batch_for_run_date(batch, run_date)
+
+        if filtered_batch.empty:
+            continue
+
+        if not table_initialized:
+            filtered_batch.head(0).to_sql(
+                name=target_table,
+                con=engine,
+                if_exists="append",
+                index=False,
+                dtype=sql_dtypes,
+            )
+            print(f"Table {target_table} created for run_date={run_date}")
+            table_initialized = True
+
+        filtered_batch.to_sql(
             name=target_table,
             con=engine,
             if_exists="append",
-            index=False
+            index=False,
+            dtype=sql_dtypes,
         )
-        print(f"Inserted chunk: {len(batch)}")
+        inserted_rows += len(filtered_batch)
+        print(f"Inserted {len(filtered_batch)} rows for run_date={run_date}")
 
-    print(f'done ingesting to {target_table}')
+    if not table_initialized:
+        empty_df = pd.read_csv(
+            str(dataset_path),
+            dtype=dtypes,
+            parse_dates=["Start date", "End date"],
+            nrows=0,
+        )
+        empty_df.to_sql(
+            name=target_table,
+            con=engine,
+            if_exists="replace",
+            index=False,
+            dtype=sql_dtypes,
+        )
+        print(f"No rows found for run_date={run_date}. Created empty table {target_table}")
+    else:
+        print(f"done ingesting {inserted_rows} rows to {target_table} for run_date={run_date}")
 
 
 @click.command()
@@ -65,12 +125,25 @@ def ingest_data(engine: Engine, chunksize: int, target_table: str):
 @click.option('--pg-db', default='london_bike_share', help='PostgreSQL database name')
 @click.option('--chunksize', default=100000, type=int, help='Chunk size for ingestion')
 @click.option('--target-table', default='london_bike_data', help='Target table name')
-@click.option('--run-date', default=lambda: __import__('datetime').datetime.utcnow().strftime('%Y-%m-%d'), show_default='current UTC date', help='Airflow logical run date in YYYY-MM-DD format')
+@click.option('--run-date', default="2023-08-01", show_default='current UTC date', help='Airflow logical run date in YYYY-MM-DD format')
 def main(pg_user, pg_pass, pg_host, pg_port, pg_db, chunksize, target_table, run_date):
     engine: Engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
 
     print(f"Starting ingestion for run_date={run_date}")
-    ingest_data(engine, chunksize, target_table)
+    try:
+        run_dt = datetime.strptime(run_date, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise click.BadParameter("run-date must be in YYYY-MM-DD format") from exc
+
+    min_date = datetime(2023, 8, 1).date()
+    max_date = datetime(2023, 8, 31).date()
+
+    if not (min_date <= run_dt <= max_date):
+        raise click.BadParameter(
+            f"run-date must be between {min_date} and {max_date}, got {run_date}"
+        )
+
+    ingest_data(engine, chunksize, target_table, run_date)
 
 
 if __name__ == "__main__":

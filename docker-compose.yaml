@@ -35,25 +35,6 @@ services:
       postgres:
         condition: service_healthy
 
-  bike_ingest:
-    build:
-      context: .
-      dockerfile: app/local_ingestion/Dockerfile
-    image: bike_ingest:v001
-    container_name: bike_ingest
-    networks:
-      - london-bike-share-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-    profiles:
-      - ingest
-    command: >
-      --pg-user=root
-      --pg-pass=root
-      --pg-host=postgres
-      --pg-port=5432
-
   airflow-init:
     build:
       context: ./orchestration/airflow
@@ -66,12 +47,20 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://root:root@postgres:5432/airflow
-      AIRFLOW__WEBSERVER__SECRET_KEY: "my_shared_airflow_secret_key"
+      AIRFLOW__API__SECRET_KEY: "8c1f0f7d2f6d4f6aa8b8c8f3d5e7a9c1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3"
+      AIRFLOW__API_AUTH__JWT_SECRET: "2d7c9e1a4b6f8d0c3e5a7b9d1f2c4e6a8b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8"
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/simple_auth_manager_passwords.json
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
+      AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
+      - ./orchestration/airflow/logs:/opt/airflow/logs
+      - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
     entrypoint: /bin/bash
-    command: -c "airflow db migrate && airflow users create --username admin --password admin --firstname Airflow --lastname Admin --role Admin --email admin@admin.com"
+    command: -c "airflow db migrate"
     networks:
       - london-bike-share-network
 
@@ -80,6 +69,7 @@ services:
       context: ./orchestration/airflow
       dockerfile: Dockerfile
     container_name: airflow-webserver
+    hostname: airflow-webserver
     restart: always
     depends_on:
       postgres:
@@ -90,13 +80,22 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://root:root@postgres:5432/airflow
-      AIRFLOW__WEBSERVER__SECRET_KEY: "my_shared_airflow_secret_key"
+      AIRFLOW__API__SECRET_KEY: "8c1f0f7d2f6d4f6aa8b8c8f3d5e7a9c1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3"
+      AIRFLOW__API_AUTH__JWT_SECRET: "2d7c9e1a4b6f8d0c3e5a7b9d1f2c4e6a8b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8"
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/simple_auth_manager_passwords.json
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
+      AIRFLOW__CORE__HOSTNAME_CALLABLE: socket.gethostname
+      AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
+      - ./orchestration/airflow/logs:/opt/airflow/logs
+      - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
     ports:
       - "8081:8080"
-    command: webserver
+    command: api-server
     networks:
       - london-bike-share-network
 
@@ -105,6 +104,7 @@ services:
       context: ./orchestration/airflow
       dockerfile: Dockerfile
     container_name: airflow-scheduler
+    hostname: airflow-scheduler
     restart: always
     depends_on:
       postgres:
@@ -115,11 +115,53 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://root:root@postgres:5432/airflow
-      AIRFLOW__WEBSERVER__SECRET_KEY: "my_shared_airflow_secret_key"
+      AIRFLOW__API__SECRET_KEY: "8c1f0f7d2f6d4f6aa8b8c8f3d5e7a9c1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3"
+      AIRFLOW__API_AUTH__JWT_SECRET: "2d7c9e1a4b6f8d0c3e5a7b9d1f2c4e6a8b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8"
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/simple_auth_manager_passwords.json
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
+      AIRFLOW__CORE__HOSTNAME_CALLABLE: socket.gethostname
+      AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
+      - ./orchestration/airflow/logs:/opt/airflow/logs
+      - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
     command: scheduler
+    networks:
+      - london-bike-share-network
+
+  airflow-dag-processor:
+    build:
+      context: ./orchestration/airflow
+      dockerfile: Dockerfile
+    container_name: airflow-dag-processor
+    hostname: airflow-dag-processor
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://root:root@postgres:5432/airflow
+      AIRFLOW__API__SECRET_KEY: "8c1f0f7d2f6d4f6aa8b8c8f3d5e7a9c1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1a3"
+      AIRFLOW__API_AUTH__JWT_SECRET: "2d7c9e1a4b6f8d0c3e5a7b9d1f2c4e6a8b0d2f4a6c8e1b3d5f7a9c0e2b4d6f8"
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/simple_auth_manager_passwords.json
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
+      AIRFLOW__CORE__HOSTNAME_CALLABLE: socket.gethostname
+      AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
+    volumes:
+      - ./orchestration/airflow/dags:/opt/airflow/dags
+      - ./:/opt/airflow/project
+      - ./orchestration/airflow/logs:/opt/airflow/logs
+      - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
+    command: dag-processor
     networks:
       - london-bike-share-network
 
