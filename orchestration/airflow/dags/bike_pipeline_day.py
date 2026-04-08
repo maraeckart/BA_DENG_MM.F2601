@@ -11,10 +11,11 @@ TRANSFORMATIONS_DIR = PROJECT_ROOT / "transformations"
 with DAG(
     dag_id="bike_pipeline_day",
     start_date=datetime(2023, 8, 1),
+    end_date=datetime(2023, 8, 31),
     schedule="@daily",
-    catchup=False,
+    catchup=True,
     tags=["bike", "pipeline", "midterm"],
-    description="Valid run_date range: 2023-08-01 to 2023-09-01",
+    description="Valid run_date range: 2023-08-01 to 2023-08-31",
 ) as dag:
 
     ingest_raw_data = BashOperator(

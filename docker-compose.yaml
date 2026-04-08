@@ -35,25 +35,6 @@ services:
       postgres:
         condition: service_healthy
 
-  bike_ingest:
-    build:
-      context: .
-      dockerfile: app/local_ingestion/Dockerfile
-    image: bike_ingest:v001
-    container_name: bike_ingest
-    networks:
-      - london-bike-share-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-    profiles:
-      - ingest
-    command: >
-      --pg-user=root
-      --pg-pass=root
-      --pg-host=postgres
-      --pg-port=5432
-
   airflow-init:
     build:
       context: ./orchestration/airflow
