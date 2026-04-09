@@ -115,6 +115,8 @@ The pipeline is managed by Apache Airflow to handle task dependencies and schedu
 
 → Airflow executes one run per day for the selected range.
 
+Since we have already successfully backfilled the month of August 2023, we now use catchup=False to ensure that if the server is restarted today (April 2026), it doesn't try to erroneously re-process the years 2024 and 2025 where no data exists
+
 **Note:** Only dates within Aug 2023 contain data.
 
 ### Access & Credentials
