@@ -9,6 +9,18 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.types import BigInteger, DateTime, Text
 
 def get_dataset_path() -> Path:
+    """
+    Retrieve the dataset file path.
+
+    This function first checks whether the dataset already exists locally.
+    If not, it downloads the dataset from Kaggle and returns the file path.
+
+    Returns:
+        Path: Local path to the dataset CSV file.
+
+    Raises:
+        FileNotFoundError: If the dataset cannot be found after download.
+    """
     dataset_file = "LondonBikeJourneyAug2023.csv"
     local_data_path = Path("/opt/airflow/project/data") / dataset_file
 
@@ -29,11 +41,36 @@ def get_dataset_path() -> Path:
 
 
 def filter_batch_for_run_date(batch: pd.DataFrame, run_date: str) -> pd.DataFrame:
+    """
+    Filter a batch of data for a specific run date.
+
+    This enables batch-based ingestion by only processing rows
+    corresponding to the Airflow execution date.
+
+    Args:
+        batch (pd.DataFrame): A chunk of the dataset.
+        run_date (str): Target date in format YYYY-MM-DD.
+
+    Returns:
+        pd.DataFrame: Filtered DataFrame containing only rows for the given date.
+    """
     target_date = pd.to_datetime(run_date).date()
     filtered_batch = batch[batch["Start date"].dt.date == target_date].copy()
     return filtered_batch
 
 def ingest_data(engine: Engine, chunksize: int, target_table: str, run_date: str):
+    """
+    Ingest data into PostgreSQL in a batch-oriented manner.
+
+    The dataset is processed in chunks to ensure scalability and memory efficiency.
+    Each batch is filtered by the provided run_date before being written to the database.
+
+    Args:
+        engine (Engine): SQLAlchemy database engine.
+        chunksize (int): Number of rows per batch.
+        target_table (str): Destination table in PostgreSQL.
+        run_date (str): Date used to filter the dataset (YYYY-MM-DD).
+    """
     dataset_path = get_dataset_path()
 
     dtypes = {
@@ -135,6 +172,7 @@ def main(pg_user, pg_pass, pg_host, pg_port, pg_db, chunksize, target_table, run
     except ValueError as exc:
         raise click.BadParameter("run-date must be in YYYY-MM-DD format") from exc
 
+    # Restrict ingestion to dataset availability range
     min_date = datetime(2023, 8, 1).date()
     max_date = datetime(2023, 8, 31).date()
 
