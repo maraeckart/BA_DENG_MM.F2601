@@ -166,6 +166,60 @@ ORDER BY trip_date ASC;
 ```
 Expected Result: You should see row counts for every day in August 2023, confirming the ingestion and transformation were successful.
 
-## 9. Additional Data Sources
+## 9. Infrastructure as Code with Terraform
+
+### Prerequisites
+
+Before running Terraform, make sure the following are available:
+
+- Terraform
+- Access to a Google Cloud project with billing enabled
+- A Google Cloud service account JSON credentials file
+
+### Authenticate with a Service Account JSON File
+
+Terraform authenticates to Google Cloud using a service account JSON credentials file.
+
+Create a service account in Google Cloud and grant it the permissions required to create the project infrastructure, for example:
+
+- Storage Admin
+- BigQuery Admin
+
+Then create a JSON key for the service account and store it locally outside the repository, for example:
+
+```bash
+~/.gcp/deng-service-account.json
+```
+
+Do not commit this credentials file to GitHub.
+
+### Usage
+
+Clone this repository and navigate to the `infrastructure/` directory.
+
+Create a `terraform.tfvars` file with the following content:
+
+```hcl
+project_id       = "your-gcp-project-id"
+credentials_file = "/absolute/path/to/your/deng-service-account.json"
+
+region   = "europe-west6"
+location = "EU"
+
+bucket_name         = "your-globally-unique-bucket-name"
+bigquery_dataset_id = "london_bike_share_warehouse"
+```
+
+The bucket name must be globally unique across Google Cloud Storage.
+The `credentials_file` value must point to the absolute local path of your service account JSON file.
+
+Initialize and apply the Terraform configuration:
+
+```bash
+terraform init
+terraform apply
+```
+
+## 10. Additional Data Sources
 London Transport Open Data (TfL):
 https://tfl.gov.uk/info-for/open-data-users/our-open-data$0
