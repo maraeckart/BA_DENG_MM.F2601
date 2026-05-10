@@ -1,0 +1,9 @@
+project_id = "your-gcp-project-id"
+
+region   = "europe-west6"
+location = "EU"
+
+bucket_name         = "your-gcp-project-id-bike-data-lake"
+bigquery_dataset_id = "bike_data_warehouse"
+
+credentials_file = "/Users/YOUR_USERNAME/.gcp/deng-service-account.json"
