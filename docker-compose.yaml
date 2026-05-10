@@ -54,11 +54,14 @@ services:
       AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/simple_auth_manager_passwords.json
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
       - ./orchestration/airflow/logs:/opt/airflow/logs
       - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
+      - ${GCP_CREDENTIALS_PATH}:/opt/airflow/secrets/gcp_credentials.json:ro
     entrypoint: /bin/bash
     command: -c "airflow db migrate"
     networks:
@@ -88,11 +91,14 @@ services:
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
       AIRFLOW__CORE__HOSTNAME_CALLABLE: socket.gethostname
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
       - ./orchestration/airflow/logs:/opt/airflow/logs
       - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
+      - ${GCP_CREDENTIALS_PATH}:/opt/airflow/secrets/gcp_credentials.json:ro
     ports:
       - "8081:8080"
     command: api-server
@@ -123,11 +129,14 @@ services:
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
       AIRFLOW__CORE__HOSTNAME_CALLABLE: socket.gethostname
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
       - ./orchestration/airflow/logs:/opt/airflow/logs
       - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
+      - ${GCP_CREDENTIALS_PATH}:/opt/airflow/secrets/gcp_credentials.json:ro
     command: scheduler
     networks:
       - london-bike-share-network
@@ -156,11 +165,14 @@ services:
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-webserver:8080/execution/
       AIRFLOW__CORE__HOSTNAME_CALLABLE: socket.gethostname
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
       - ./orchestration/airflow/logs:/opt/airflow/logs
       - ./orchestration/airflow/simple_auth_manager_passwords.json:/opt/airflow/simple_auth_manager_passwords.json
+      - ${GCP_CREDENTIALS_PATH}:/opt/airflow/secrets/gcp_credentials.json:ro
     command: dag-processor
     networks:
       - london-bike-share-network
