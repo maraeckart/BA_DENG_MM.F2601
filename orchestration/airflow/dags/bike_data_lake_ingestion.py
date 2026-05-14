@@ -24,11 +24,16 @@ with DAG(
 
     upload_raw_data_to_gcs = BashOperator(
         task_id="upload_raw_data_to_gcs",
-        bash_command="""python /opt/airflow/project/app/cloud_ingestion/upload_to_gcs.py""",
+        bash_command=(
+            "python /opt/airflow/project/app/cloud_ingestion/upload_to_gcs.py "
+            "--bucket-name $GCS_BUCKET_NAME "
+            "--gcs-prefix raw/london_bike_share "
+            "--chunksize 100000 "
+            "--output-batch-size 10000 "
+            "--run-date {{ ds }}"
+        ),
         env={
             "GOOGLE_APPLICATION_CREDENTIALS": "/opt/airflow/secrets/gcp_credentials.json",
             "GCS_BUCKET_NAME": os.environ["GCS_BUCKET_NAME"],
-            "GCS_PREFIX": "raw/london_bike_share",
-            "EXECUTION_DATE": "{{ ds }}",
         },
     )
