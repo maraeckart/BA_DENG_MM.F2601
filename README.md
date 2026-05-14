@@ -1,50 +1,100 @@
 # London Bike Share Data Pipeline
 ### Project Identifier: `BA_DENG_MM.F2601`
 
-This project implements an automated ETL (Extract, Transform, Load) pipeline for the **London Bike Share Usage Dataset**. It utilizes Docker to orchestrate a PostgreSQL database, pgAdmin for visualization, and Apache Airflow for workflow management.
+This project implements an automated batch data pipeline for the **London Bike Share Usage Dataset**. It supports two reproducible ingestion paths:
+
+- **Local ingestion** into PostgreSQL, with transformations and validation through pgAdmin.
+- **Cloud ingestion** into Google Cloud Storage and BigQuery, provisioned with Terraform.
+
+Apache Airflow is used for workflow orchestration, and Docker Compose is used to make the local development environment reproducible.
+
+---
+
+## Table of Contents
+
+1. [Dataset Overview](#1-dataset-overview)
+2. [Prerequisites](#2-prerequisites)
+3. [Project Structure](#3-project-structure)
+4. [Local Ingestion Pipeline](#4-local-ingestion-pipeline)
+   - [Local Architecture](#local-architecture)
+   - [Start the Local Stack](#start-the-local-stack)
+   - [Run the Local Airflow DAG](#run-the-local-airflow-dag)
+   - [Connect pgAdmin to PostgreSQL](#connect-pgadmin-to-postgresql)
+   - [Validate the Local Pipeline](#validate-the-local-pipeline)
+5. [Cloud Ingestion Pipeline](#5-cloud-ingestion-pipeline)
+   - [Cloud Architecture](#cloud-architecture)
+   - [Provision Cloud Infrastructure with Terraform](#provision-cloud-infrastructure-with-terraform)
+   - [Configure Cloud Credentials for Airflow](#configure-cloud-credentials-for-airflow)
+   - [Start the Cloud Stack](#start-the-cloud-stack)
+   - [Run the Cloud Airflow DAG](#run-the-cloud-airflow-dag)
+6. [Workflow Orchestration](#6-workflow-orchestration)
+7. [Data Transformation Logic](#7-data-transformation-logic)
+8. [Access & Credentials](#8-access--credentials)
+9. [Additional Data Sources](#9-additional-data-sources)
 
 ---
 
 ## 1. Dataset Overview
-* **Source:** [Kaggle - London Bike Share Usage Dataset](https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset)
-* **Description:** HHistorical trip data from London’s bike-sharing system (Aug 1 – Aug 31, 2023).
-* **Scope:** ~776,527 bicycle journeys.
+
+- **Source:** [Kaggle - London Bike Share Usage Dataset](https://www.kaggle.com/datasets/kalacheva/london-bike-share-usage-dataset)
+- **Description:** Historical trip data from London’s bike-sharing system from Aug 1 to Aug 31, 2023.
+- **Scope:** Approximately 776,527 bicycle journeys.
 
 ### Main Features
+
 | Feature | Description |
 | :--- | :--- |
-| **Number** | Unique identifier for each trip (Trip ID) |
+| **Number** | Unique identifier for each trip, also used as the trip ID |
 | **Start Date** | Date and time when the trip began |
 | **Start Station** | Name and ID of the starting station |
 | **End Date** | Date and time when the trip ended |
 | **End Station** | Name and ID of the ending station |
 | **Bike Number** | Unique identifier for the bicycle used |
 | **Bike Model** | The model of the bicycle used |
-| **Total Duration** | Trip length (Human-readable and Milliseconds) |
+| **Total Duration** | Trip length in human-readable format and milliseconds |
 
 ---
 
 ## 2. Prerequisites
-Ensure the following are installed on your local machine:
-**Docker**
+
+Make sure the following tools are installed on your local machine:
+
+- Docker
+- Docker Compose
+- Terraform
+- Access to a Google Cloud project with billing enabled, required only for the cloud ingestion pipeline
+- A Google Cloud service account JSON credentials file, required only for the cloud ingestion pipeline
 
 ---
+
 ## 3. Project Structure
+
 ```bash
 .
 ├── app/
-│   └── local_ingestion/
-│       ├── Dockerfile
-│       └── pipeline.py
+│   ├── local_ingestion/
+│   │   ├── Dockerfile
+│   │   └── pipeline.py
+│   ├── cloud_ingestion/
+│   │   ├── Dockerfile
+│   │   └── upload_to_gcs.py
+├── infrastructure/
 ├── london_bike_share_data/
 ├── orchestration/
 │   └── airflow/
 │       ├── dags/
+│       │   ├── bike_data_lake_ingestion.py
 │       │   └── bike_pipeline_day.py
 │       ├── Dockerfile
 │       └── simple_auth_manager_passwords.json
 ├── postgres/
 │   └── init_airflow.sql
+├── terraform/
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── provider.tf
+│   ├── terraform.tfvars.example
+│   └── variables.tf
 ├── transformations/
 │   ├── create_bike_trips_clean.sql
 │   ├── create_route_daily_demand.sql
@@ -55,93 +105,83 @@ Ensure the following are installed on your local machine:
 ├── pyproject.toml
 └── uv.lock
 ```
-## 4. Infrastructure Setup
 
-### Database & Administration
+---
 
-The environment is fully containerized. To launch the entire stack:
+## 4. Local Ingestion Pipeline
+
+The local ingestion pipeline loads the London Bike Share CSV data into a local PostgreSQL database. Airflow orchestrates the ingestion and transformation tasks, and pgAdmin can be used to inspect the resulting tables.
+
+### Local Architecture
+
+```text
+Kaggle CSV source
+    --> Airflow local ingestion DAG
+    --> PostgreSQL raw table: london_bike_data
+    --> PostgreSQL clean table: bike_trips_clean
+    --> PostgreSQL aggregation tables
+    --> pgAdmin validation
+```
+
+The local stack contains:
+
+| Service | Purpose |
+| :--- | :--- |
+| PostgreSQL | Stores raw, cleaned, and aggregated local data |
+| pgAdmin | Provides a browser-based UI for querying PostgreSQL |
+| Airflow API Server | Provides the Airflow UI |
+| Airflow Scheduler | Schedules and runs DAG tasks |
+| Airflow DAG Processor | Parses DAG files |
+
+### Start the Local Stack
+
+Use the local Docker Compose profile:
 
 ```bash
-# Start all services (Database, Airflow, API Server, Scheduler)
-docker compose up --build
-```
-## 5. Data Pipeline Structure
-The pipeline processes data through three distinct layers:
-
-```
-    --> Kaggle (CSV Source)
-    --> Raw Table: london_bike_data
-    --> Clean Layer: bike_trips_clean
-        --> Agg: station_hourly_demand
-        --> Agg: route_daily_demand
-        --> Agg: top_routes
-        --> Agg: station_daily_demand
+docker compose --profile local up --build
 ```
 
-### Raw Layer (london_bike_data):
-The initial ingestion of raw CSV data.
+This starts the services needed for local development and local ingestion.
 
-### Clean Layer (bike_trips_clean):
+To stop the stack:
 
-Standardized column naming and timestamp formatting.
+```bash
+docker compose --profile local down
+```
 
-Data preparation for downstream analytical queries.
+### Run the Local Airflow DAG
 
-### Aggregation Layer:
-
-Station Hourly: Identifies peak demand and maintenance needs.
-
-Route Daily: Tracks movement patterns between specific stations.
-
-Top Routes: Focuses on the highest-traffic segments.
-
-## 6. Workflow Orchestration (Airflow)
-The pipeline is managed by Apache Airflow to handle task dependencies and scheduling.
-
-### Run for a Single Date
-1. Open Airflow UI: http://localhost:8081
-2. Select DAG `bike_pipeline_day`
+1. Open the Airflow UI: [http://localhost:8081](http://localhost:8081)
+2. Select the DAG `bike_pipeline_day`
 3. Click **Trigger DAG**
-4. Set the execution date (e.g., `2023-08-10`)
+4. Set the execution date, for example `2023-08-10`
 5. Trigger the run
 
-→ Runs the pipeline only for that specific day.
+This runs the local pipeline for one specific day.
 
-### Run Backfill (Historical Data)
-1. Select DAG `bike_pipeline_day`
+### Run a Local Backfill
+
+1. Open the DAG `bike_pipeline_day`
 2. Click **Trigger DAG**
 3. Select **Run Backfills**
-4. Set a date range (Aug 1–31, 2023)
+4. Set a date range between Aug 1 and Aug 31, 2023
 
-→ Airflow executes one run per day for the selected range.
+Airflow executes one run per day for the selected range.
 
-**Note:** Only dates within Aug 2023 contain data.
+**Note:** Only dates in August 2023 contain data.
 
-### Access & Credentials
-|Service| URL | Username | Password |
-| :--- | :--- | :--- | :--- |
-| Airflow | http://localhost:8081 |admin| admin|
-| pgAdmin | http://localhost:8085 |admin@admin.com| root|
-| postgres | http://localhost:5432 |root| root|
+### Connect pgAdmin to PostgreSQL
 
-The Airflow DAG executes the following logic:
+Open pgAdmin at [http://localhost:8085](http://localhost:8085), then register a new server.
 
-ingest_raw_data
+**General tab**
 
-create_bike_trips_clean
+| Field | Value |
+| :--- | :--- |
+| Name | London Bike Share DB |
 
-create_station_hourly_demand
+**Connection tab**
 
-create_route_daily_demand
-
-## 7. Connecting pgAdmin to Postgres
-Once logged into pgAdmin, register the server with these settings:
-
-General Tab:
-
-Name: London Bike Share DB
-
-Connection Tab:
 | Field | Value |
 | :--- | :--- |
 | Host name/address | postgres |
@@ -150,54 +190,55 @@ Connection Tab:
 | Username | root |
 | Password | root |
 
-press ***Save***
-## 8. Final Quick Check (Testing)
-To verify the pipeline's success after the Airflow Grid shows all green, run the following check in pgAdmin:
-Connect to the London Bike Share DB.
+Press **Save**.
 
-Open the Query Tool and execute:
-```bash
-SQL
--- Check if data exists and is cleaned
-SELECT trip_date, count(*)
+### Validate the Local Pipeline
+
+After the Airflow Grid shows successful task runs, open the Query Tool in pgAdmin and run:
+
+```sql
+SELECT trip_date, COUNT(*)
 FROM bike_trips_clean
 GROUP BY trip_date
 ORDER BY trip_date ASC;
 ```
-Expected Result: You should see row counts for every day in August 2023, confirming the ingestion and transformation were successful.
 
-## 9. Infrastructure as Code with Terraform
+Expected result: row counts for every processed day in August 2023.
 
-### Prerequisites
+---
 
-Before running Terraform, make sure the following are available:
+## 5. Cloud Ingestion Pipeline
 
-- Terraform
-- Access to a Google Cloud project with billing enabled
-- A Google Cloud service account JSON credentials file
+The cloud ingestion pipeline loads batch data into Google Cloud Storage and prepares it for analytical use in BigQuery. Terraform is used to provision the required cloud infrastructure.
 
-### Authenticate with a Service Account JSON File
+### Cloud Architecture
 
-Terraform authenticates to Google Cloud using a service account JSON credentials file.
-
-Create a service account in Google Cloud and grant it the permissions required to create the project infrastructure, for example:
-
-- Storage Admin
-- BigQuery Admin
-
-Then create a JSON key for the service account and store it locally outside the repository, for example:
-
-```bash
-~/.gcp/deng-service-account.json
+```text
+Kaggle CSV source
+    --> Airflow cloud ingestion DAG
+    --> Google Cloud Storage data lake
+    --> BigQuery warehouse tables
+    --> Analytics or machine learning use case
 ```
 
-Do not commit this credentials file to GitHub.
+The cloud stack uses:
 
-### Usage
+| Component | Purpose |
+| :--- | :--- |
+| Google Cloud Storage | Cloud data lake for raw or staged files |
+| BigQuery | Cloud data warehouse for transformed analytical tables |
+| Terraform | Infrastructure provisioning |
+| Airflow | Orchestration of cloud ingestion and transformation tasks |
 
-Clone this repository and navigate to the `infrastructure/` directory.
+### Provision Cloud Infrastructure with Terraform
 
-Create a `terraform.tfvars` file with the following content:
+Navigate to the Terraform directory:
+
+```bash
+cd terraform
+```
+
+Create a `terraform.tfvars` file or rename `terraform.tfvars.example`:
 
 ```hcl
 project_id       = "your-gcp-project-id"
@@ -211,7 +252,6 @@ bigquery_dataset_id = "london_bike_share_warehouse"
 ```
 
 The bucket name must be globally unique across Google Cloud Storage.
-The `credentials_file` value must point to the absolute local path of your service account JSON file.
 
 Initialize and apply the Terraform configuration:
 
@@ -220,6 +260,132 @@ terraform init
 terraform apply
 ```
 
-## 10. Additional Data Sources
-London Transport Open Data (TfL):
-https://tfl.gov.uk/info-for/open-data-users/our-open-data$0
+### Configure Cloud Credentials for Airflow
+
+Create a Google Cloud service account with the permissions required by the pipeline, for example:
+
+- Storage Admin
+- BigQuery Admin
+
+Create a JSON key for the service account and store it outside the repository, for example:
+
+```bash
+~/.gcp/deng-service-account.json
+```
+
+Do not commit this credentials file to GitHub.
+
+Set the credentials path before starting the cloud profile:
+
+```bash
+export GCP_CREDENTIALS_PATH=/absolute/path/to/your/deng-service-account.json
+export GCS_BUCKET_NAME=your-globally-unique-bucket-name
+```
+
+The Docker Compose file mounts the credentials into the Airflow containers at:
+
+```text
+/opt/airflow/secrets/gcp_credentials.json
+```
+
+Airflow and the Google Cloud Python libraries use this path through:
+
+```bash
+GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/secrets/gcp_credentials.json
+```
+
+### Start the Cloud Stack
+
+Use the cloud Docker Compose profile:
+
+```bash
+docker compose --profile cloud up --build
+```
+
+This starts the services needed to orchestrate the cloud ingestion pipeline.
+
+To stop the stack:
+
+```bash
+docker compose --profile cloud down
+```
+
+### Run the Cloud Airflow DAG
+
+1. Open the Airflow UI: [http://localhost:8081](http://localhost:8081)
+2. Select the cloud ingestion DAG
+3. Trigger the DAG manually or run the configured schedule
+4. Verify that data has been written to the configured Google Cloud Storage bucket
+5. Verify that the transformed table is available in BigQuery
+
+---
+
+## 6. Workflow Orchestration
+
+Apache Airflow manages the pipeline execution. It is responsible for:
+
+- Scheduling batch runs
+- Running individual pipeline tasks in the correct order
+- Supporting backfills for historical data
+- Providing observability through the Airflow UI
+
+The local DAG executes the following logic:
+
+```text
+ingest_raw_data
+    --> create_bike_trips_clean
+    --> create_station_hourly_demand
+    --> create_route_daily_demand
+    --> create_top_routes
+```
+
+---
+
+## 7. Data Transformation Logic
+
+The pipeline processes data through three layers:
+
+```text
+Raw Layer: london_bike_data
+    --> Clean Layer: bike_trips_clean
+        --> Aggregation Layer: station_hourly_demand
+        --> Aggregation Layer: route_daily_demand
+        --> Aggregation Layer: top_routes
+        --> Aggregation Layer: station_daily_demand
+```
+
+### Raw Layer: `london_bike_data`
+
+The raw layer stores the initial ingestion of CSV data with minimal changes.
+
+### Clean Layer: `bike_trips_clean`
+
+The clean layer standardizes column names, converts timestamp fields, and prepares the data for downstream analytical queries.
+
+### Aggregation Layer
+
+| Table | Purpose |
+| :--- | :--- |
+| `station_hourly_demand` | Identifies hourly station demand patterns and possible maintenance needs |
+| `route_daily_demand` | Tracks daily movement patterns between start and end stations |
+| `top_routes` | Identifies the highest-traffic route segments |
+| `station_daily_demand` | Summarizes daily station-level activity |
+
+These transformations support analysis of station usage, peak demand, and route popularity.
+
+---
+
+## 8. Access & Credentials
+
+| Service | URL | Username | Password |
+| :--- | :--- | :--- | :--- |
+| Airflow | [http://localhost:8081](http://localhost:8081) | admin | admin |
+| pgAdmin | [http://localhost:8085](http://localhost:8085) | admin@admin.com | root |
+| PostgreSQL | localhost:5432 | root | root |
+
+---
+
+## 9. Additional Data Sources
+
+London Transport Open Data from TfL:
+[https://tfl.gov.uk/info-for/open-data-users/our-open-data](https://tfl.gov.uk/info-for/open-data-users/our-open-data)
