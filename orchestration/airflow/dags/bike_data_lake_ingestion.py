@@ -24,9 +24,7 @@ with DAG(
 
     upload_raw_data_to_gcs = BashOperator(
         task_id="upload_raw_data_to_gcs",
-        bash_command="""
-        python /opt/airflow/project/app/cloud_ingestion/upload_to_gcs.py
-        """,
+        bash_command="""python /opt/airflow/project/app/cloud_ingestion/upload_to_gcs.py""",
         env={
             "GOOGLE_APPLICATION_CREDENTIALS": "/opt/airflow/secrets/gcp_credentials.json",
             "GCS_BUCKET_NAME": os.environ["GCS_BUCKET_NAME"],
