@@ -34,6 +34,6 @@ with DAG(
         ),
         env={
             "GOOGLE_APPLICATION_CREDENTIALS": "/opt/airflow/secrets/gcp_credentials.json",
-            "GCS_BUCKET_NAME": os.environ["GCS_BUCKET_NAME"],
+            "GCS_BUCKET_NAME": os.environ.get("GCS_BUCKET_NAME", ""),
         },
     )
