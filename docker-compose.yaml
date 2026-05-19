@@ -59,6 +59,8 @@ services:
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
       GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
       GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      BIGQUERY_DATASET_ID: ${BIGQUERY_DATASET_ID:-}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
@@ -99,6 +101,8 @@ services:
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
       GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
       GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      BIGQUERY_DATASET_ID: ${BIGQUERY_DATASET_ID:-}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
@@ -140,6 +144,8 @@ services:
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
       GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
       GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      BIGQUERY_DATASET_ID: ${BIGQUERY_DATASET_ID:-}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
@@ -179,6 +185,8 @@ services:
       AIRFLOW_CONN_POSTGRES_LONDON_BIKE: postgresql://root:root@postgres:5432/london_bike_share
       GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/secrets/gcp_credentials.json
       GCS_BUCKET_NAME: ${GCS_BUCKET_NAME:-}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      BIGQUERY_DATASET_ID: ${BIGQUERY_DATASET_ID:-}
     volumes:
       - ./orchestration/airflow/dags:/opt/airflow/dags
       - ./:/opt/airflow/project
