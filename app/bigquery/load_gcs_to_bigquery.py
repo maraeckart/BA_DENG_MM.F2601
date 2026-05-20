@@ -7,6 +7,11 @@ import pandas as pd
 from google.cloud import storage
 from google.cloud import bigquery
 
+import re
+from datetime import datetime
+
+MIN_DATE = datetime(2023, 8, 1).date()
+MAX_DATE = datetime(2023, 8, 31).date()
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -18,6 +23,42 @@ def parse_args():
     parser.add_argument("--run-date", required=True)
     return parser.parse_args()
 
+def resolve_run_dates(bucket_name: str, gcs_prefix: str, run_date: str):
+    if run_date != "all":
+        run_dt = datetime.strptime(run_date, "%Y-%m-%d").date()
+
+        if not (MIN_DATE <= run_dt <= MAX_DATE):
+            raise ValueError(
+                f"run_date must be between {MIN_DATE} and {MAX_DATE}, got {run_date}"
+            )
+
+        return [run_date]
+
+    storage_client = storage.Client()
+
+    blobs = storage_client.list_blobs(
+        bucket_name,
+        prefix=f"{gcs_prefix}/execution_date=",
+    )
+
+    available_dates = set()
+
+    for blob in blobs:
+        match = re.search(r"execution_date=(\d{4}-\d{2}-\d{2})/", blob.name)
+
+        if match:
+            date_value = match.group(1)
+            date_obj = datetime.strptime(date_value, "%Y-%m-%d").date()
+
+            if MIN_DATE <= date_obj <= MAX_DATE:
+                available_dates.add(date_value)
+
+    if not available_dates:
+        raise FileNotFoundError(
+            f"No available execution_date folders found in gs://{bucket_name}/{gcs_prefix}"
+        )
+
+    return sorted(available_dates)
 
 def list_gcs_files(bucket_name: str, gcs_prefix: str, run_date: str):
     storage_client = storage.Client()
@@ -58,7 +99,7 @@ def transform_chunk(df: pd.DataFrame) -> pd.DataFrame:
             "End station": "end_station_name",
             "Bike number": "bike_id",
             "Bike model": "bike_model",
-            "Total duration": "duration_text",
+            "Total duration": "duration_text",  
             "Total duration (ms)": "duration_ms",
         }
     )
@@ -223,58 +264,69 @@ def main():
         table_id=args.table_id,
     )
 
-    delete_existing_partition(
-        project_id=args.project_id,
-        dataset_id=args.dataset_id,
-        table_id=args.table_id,
-        run_date=args.run_date,
-    )
-
-    gcs_files = list_gcs_files(
+    run_dates = resolve_run_dates(
         bucket_name=args.bucket_name,
         gcs_prefix=args.gcs_prefix,
         run_date=args.run_date,
     )
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        transformed_csv_path = Path(tmpdir) / f"bike_trips_clean_{args.run_date}.csv"
+    print(f"Processing run dates: {run_dates}")
 
-        wrote_header = False
+    for current_run_date in run_dates:
+        print(f"Starting BigQuery transformation for {current_run_date}")
 
-        for index, blob_name in enumerate(gcs_files):
-            local_raw_path = Path(tmpdir) / f"raw_{index}.csv"
-
-            print(f"Downloading gs://{args.bucket_name}/{blob_name}")
-            download_gcs_file(
-                bucket_name=args.bucket_name,
-                blob_name=blob_name,
-                local_path=str(local_raw_path),
-            )
-
-            for chunk in pd.read_csv(local_raw_path, chunksize=100000):
-                transformed = transform_chunk(chunk)
-
-                transformed.to_csv(
-                    transformed_csv_path,
-                    mode="a",
-                    header=not wrote_header,
-                    index=False,
-                )
-
-                wrote_header = True
-
-        if not os.path.exists(transformed_csv_path):
-            raise RuntimeError("No transformed data was produced.")
-        
-        if not wrote_header:
-            raise RuntimeError(f"No transformed rows were produced for run_date={args.run_date}")
-
-        load_csv_to_bigquery(
-            csv_path=str(transformed_csv_path),
+        delete_existing_partition(
             project_id=args.project_id,
             dataset_id=args.dataset_id,
             table_id=args.table_id,
+            run_date=current_run_date,
         )
+
+        gcs_files = list_gcs_files(
+            bucket_name=args.bucket_name,
+            gcs_prefix=args.gcs_prefix,
+            run_date=current_run_date,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            transformed_csv_path = Path(tmpdir) / f"bike_trips_clean_{current_run_date}.csv"
+
+            wrote_header = False
+
+            for index, blob_name in enumerate(gcs_files):
+                local_raw_path = Path(tmpdir) / f"raw_{index}.csv"
+
+                print(f"Downloading gs://{args.bucket_name}/{blob_name}")
+
+                download_gcs_file(
+                    bucket_name=args.bucket_name,
+                    blob_name=blob_name,
+                    local_path=str(local_raw_path),
+                )
+
+                for chunk in pd.read_csv(local_raw_path, chunksize=100000):
+                    transformed = transform_chunk(chunk)
+
+                    transformed.to_csv(
+                        transformed_csv_path,
+                        mode="a",
+                        header=not wrote_header,
+                        index=False,
+                    )
+
+                    wrote_header = True
+
+            if not wrote_header:
+                raise RuntimeError(
+                    f"No transformed rows were produced for run_date={current_run_date}"
+                )
+
+            load_csv_to_bigquery(
+                csv_path=str(transformed_csv_path),
+                project_id=args.project_id,
+                dataset_id=args.dataset_id,
+                table_id=args.table_id,
+            )
 
 
 if __name__ == "__main__":
