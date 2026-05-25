@@ -237,7 +237,7 @@ Expected result: row counts for every processed August 2023 date.
 
 The cloud pipeline has two stages:
 
-### Step 2: Data Lake Ingestion
+### Step 1: Data Lake Ingestion
 
 ```text
 Kaggle CSV source
@@ -245,7 +245,7 @@ Kaggle CSV source
     --> Google Cloud Storage raw data lake
 ```
 
-### Step 3: Data Warehouse Transformation
+### Step 2: Data Warehouse Transformation
 
 ```text
 Google Cloud Storage raw data lake
@@ -314,19 +314,6 @@ bigquery_dataset_id = "bike_data_warehouse"
 credentials_file = "/absolute/path/to/your/service-account.json"
 ```
 
-Example project-specific version:
-
-```hcl
-project_id = "custom-blade-489312-g4"
-
-region   = "europe-west6"
-location = "EU"
-
-bucket_name         = "deng-bike-data-lake"
-bigquery_dataset_id = "bike_data_warehouse"
-
-credentials_file = "/Users/your-username/.gcp/deng-london-bike-share.json"
-```
 
 The bucket name must be globally unique across Google Cloud Storage.
 
@@ -363,14 +350,10 @@ GOOGLE_APPLICATION_CREDENTIALS=/opt/airflow/secrets/gcp_credentials.json
 
 ### 3. Create the Service Account Key
 
-Create or use an existing service account in Google Cloud.
+Create a Google Cloud service account with the permissions required by the pipeline, for example:
 
-The service account should have access to:
-
-| Google Cloud Service | Required Access |
-| :--- | :--- |
-| Google Cloud Storage | Read and write raw CSV files |
-| BigQuery | Create, load, and query warehouse tables |
+- Storage Admin
+- BigQuery Admin
 
 Store the JSON key outside the repository, for example:
 
@@ -419,7 +402,7 @@ After Terraform completes, return to the project root:
 cd ..
 ```
 
-Verify the created bucket in Google Cloud UI
+Verify the created bucket in Google Cloud UI.
 
 ### Start the Cloud Stack
 
@@ -433,13 +416,6 @@ To stop the cloud stack:
 
 ```bash
 docker compose --profile cloud down
-```
-
-To restart cleanly after changing DAGs, environment variables, or Docker configuration:
-
-```bash
-docker compose --profile cloud down -v
-docker compose --profile cloud up --build
 ```
 
 ### Run the Cloud Data Lake Ingestion DAG
@@ -456,11 +432,6 @@ It runs:
 app/cloud_ingestion/upload_to_gcs.py
 ```
 
-The DAG uploads raw filtered daily CSV batches to Google Cloud Storage using this layout:
-
-```text
-gs://<bucket-name>/raw/london_bike_share/execution_date=YYYY-MM-DD/batch_00001.csv
-```
 
 #### Run for One Date
 
@@ -496,11 +467,7 @@ It runs:
 app/bigquery/load_gcs_to_bigquery.py
 ```
 
-This DAG reads raw files from GCS, transforms them, and loads them into a native BigQuery warehouse table:
-
-```text
-bike_data_warehouse.bike_trips_clean
-```
+This DAG reads raw files from GCS, transforms them, and loads them into a BigQuery warehouse table.
 
 The final BigQuery table is:
 
@@ -522,8 +489,6 @@ If the Airflow logical date is within the dataset range:
 the DAG processes that single date.
 
 If the DAG is triggered manually with a current date outside the dataset range, the script processes all available `execution_date=YYYY-MM-DD` folders in GCS.
-
-This makes the DAG easier to use during demos and peer review.
 
 ### Recommended Cloud Run Order
 
