@@ -22,3 +22,5 @@ terraform.tfstate
 terraform.tfstate.backup
 terraform.tfvars
 *.tfplan
+
+orchestration/airflow/logs

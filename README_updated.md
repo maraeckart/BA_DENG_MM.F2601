@@ -121,8 +121,6 @@ For this class project, roles such as `Storage Admin` and `BigQuery Admin` are s
 
 ---
 
-# London Bike Share Data Pipeline
-
 ## 4. Local Ingestion Pipeline
 
 The local ingestion pipeline loads the London Bike Share CSV data into a local PostgreSQL database. Airflow orchestrates the ingestion and transformation tasks, and pgAdmin can be used to inspect the resulting tables.
@@ -314,18 +312,18 @@ bigquery_dataset_id = "bike_data_warehouse"
 credentials_file = "/absolute/path/to/your/service-account.json"
 ```
 
-Example project-specific version:
+Example filled-in version:
 
 ```hcl
-project_id = "custom-blade-489312-g4"
+project_id = "your-gcp-project-id"
 
 region   = "europe-west6"
 location = "EU"
 
-bucket_name         = "deng-bike-data-lake"
+bucket_name         = "your-globally-unique-bucket-name"
 bigquery_dataset_id = "bike_data_warehouse"
 
-credentials_file = "/Users/your-username/.gcp/deng-london-bike-share.json"
+credentials_file = "/Users/your-username/.gcp/your-service-account.json"
 ```
 
 The bucket name must be globally unique across Google Cloud Storage.
@@ -345,6 +343,15 @@ GCP_CREDENTIALS_PATH=/absolute/path/to/your/service-account.json
 GCS_BUCKET_NAME=your-gcs-bucket-name
 GCP_PROJECT_ID=your-gcp-project-id
 BIGQUERY_DATASET_ID=your-bigquery-dataset-id
+```
+
+Example filled-in version:
+
+```env
+GCP_CREDENTIALS_PATH=/Users/your-username/.gcp/your-service-account.json
+GCS_BUCKET_NAME=your-globally-unique-bucket-name
+GCP_PROJECT_ID=your-gcp-project-id
+BIGQUERY_DATASET_ID=bike_data_warehouse
 ```
 
 Docker Compose automatically reads `.env` from the project root.
@@ -375,7 +382,7 @@ The service account should have access to:
 Store the JSON key outside the repository, for example:
 
 ```text
-~/.gcp/deng-london-bike-share.json
+~/.gcp/your-service-account.json
 ```
 
 Do not commit service account keys to GitHub.
@@ -419,7 +426,23 @@ After Terraform completes, return to the project root:
 cd ..
 ```
 
-Verify the created bucket in Google Cloud UI
+Verify the bucket:
+
+```bash
+gcloud storage buckets list
+```
+
+Verify the BigQuery dataset:
+
+```bash
+bq ls your-gcp-project-id:
+```
+
+Example:
+
+```bash
+bq ls your-gcp-project-id:
+```
 
 ### Start the Cloud Stack
 
@@ -462,6 +485,12 @@ The DAG uploads raw filtered daily CSV batches to Google Cloud Storage using thi
 gs://<bucket-name>/raw/london_bike_share/execution_date=YYYY-MM-DD/batch_00001.csv
 ```
 
+Example:
+
+```text
+gs://<bucket-name>/raw/london_bike_share/execution_date=2023-08-17/batch_00001.csv
+```
+
 #### Run for One Date
 
 In Airflow:
@@ -480,7 +509,7 @@ Use Airflow backfill for:
 2023-08-01 to 2023-08-31
 ```
 
-Only August 2023 is valid because the source dataset only contains that month (02.08.2023 is not available in the dataset).
+Only August 2023 is valid because the source dataset only contains that month.
 
 ### Run the BigQuery Transformation DAG
 
@@ -536,43 +565,100 @@ For the complete cloud pipeline:
 5. Validate GCS and BigQuery outputs.
 
 ### Verify GCS and BigQuery
-Use the Google Cloud Console UI for verification.
 
-1. Open the Google Cloud Console
-2. Go to **BigQuery**
-3. Select your Google Cloud project
-4. Open the dataset configured as `bigquery_dataset_id`
-5. Open the table `bike_trips_clean`
-6. Check the **Details** tab and confirm that the table contains rows
-7. Confirm that partitioning uses `trip_date`
-8. Confirm that clustering uses `start_station_id` and `end_station_id`
+#### Verify GCS Raw Files
 
-To validate the loaded data, open the **Query** tab in BigQuery and run:
+Replace `<bucket-name>` with the bucket name from your `.env` file.
 
-```sql
-SELECT
-  trip_date,
-  COUNT(*) AS trip_count
-FROM `<project-id>.<bigquery-dataset-id>.bike_trips_clean`
-GROUP BY trip_date
-ORDER BY trip_date;
+List all raw files:
+
+```bash
+gcloud storage ls --recursive gs://<bucket-name>/raw/london_bike_share/
 ```
 
-Expected result: one row per processed day in August 2023.
+Check one date:
 
-Example analytical query:
-
-```sql
-SELECT
-  start_station_name,
-  start_hour,
-  COUNT(*) AS trip_count,
-  ROUND(AVG(duration_minutes), 2) AS avg_duration_minutes
-FROM `<project-id>.<bigquery-dataset-id>.bike_trips_clean`
-GROUP BY start_station_name, start_hour
-ORDER BY trip_count DESC
-LIMIT 20;
+```bash
+gcloud storage ls --long --recursive gs://<bucket-name>/raw/london_bike_share/execution_date=2023-08-17/
 ```
+
+Inspect a raw CSV header:
+
+```bash
+gcloud storage cat gs://<bucket-name>/raw/london_bike_share/execution_date=2023-08-17/batch_00001.csv | head -n 1
+```
+
+Expected header:
+
+```csv
+Number,Start date,Start station number,Start station,End date,End station number,End station,Bike number,Bike model,Total duration,Total duration (ms)
+```
+
+#### Verify BigQuery Table Exists
+
+The recommended verification method is the Google Cloud Console UI:
+
+```text
+Open Google Cloud Console
+Go to BigQuery
+Select your project
+Open the bike_data_warehouse dataset
+Open the bike_trips_clean table
+Check the Details tab
+```
+
+Expected table properties:
+
+| Property | Expected Value |
+| :--- | :--- |
+| Time Partitioning | DAY field `trip_date` |
+| Clustered Fields | `start_station_id`, `end_station_id` |
+| Total Rows | Greater than 0 |
+
+#### Verify Row Counts by Date
+
+```bash
+bq query --use_legacy_sql=false \
+"SELECT
+   trip_date,
+   COUNT(*) AS trip_count
+ FROM `your-gcp-project-id.bike_data_warehouse.bike_trips_clean`
+ GROUP BY trip_date
+ ORDER BY trip_date"
+```
+
+Expected output: one row per processed date.
+
+#### Example Analytics Query: Station Demand by Hour
+
+```bash
+bq query --use_legacy_sql=false \
+"SELECT
+   start_station_name,
+   start_hour,
+   COUNT(*) AS trip_count,
+   ROUND(AVG(duration_minutes), 2) AS avg_duration_minutes
+ FROM `your-gcp-project-id.bike_data_warehouse.bike_trips_clean`
+ GROUP BY start_station_name, start_hour
+ ORDER BY trip_count DESC
+ LIMIT 20"
+```
+
+#### Example Analytics Query: Popular Routes
+
+```bash
+bq query --use_legacy_sql=false \
+"SELECT
+   start_station_name,
+   end_station_name,
+   COUNT(*) AS trip_count,
+   ROUND(AVG(duration_minutes), 2) AS avg_duration_minutes
+ FROM `your-gcp-project-id.bike_data_warehouse.bike_trips_clean`
+ GROUP BY start_station_name, end_station_name
+ ORDER BY trip_count DESC
+ LIMIT 20"
+```
+
 ---
 
 ## 6. Workflow Orchestration
@@ -731,7 +817,7 @@ orchestration/airflow/secrets/
 Service account JSON keys must be stored outside the repository, for example:
 
 ```text
-~/.gcp/deng-london-bike-share.json
+~/.gcp/your-service-account.json
 ```
 
 ---
